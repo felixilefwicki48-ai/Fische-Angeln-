@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fischteich &ndash; Logikr&auml;tsel</title>
+<style>
+  :root {
+    --wasser: #7cc4e8;
+    --wasser-dunkel: #a5d8f0;
+    --rand: #20536b;
+    --gras: #5aa64a;
+    --ink: #1b3a48;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, #d8f0fa 0%, #eef9e8 100%);
+    min-height: 100vh;
+    padding: 1rem;
+  }
+  header { text-align: center; margin-bottom: 1rem; }
+  h1 { margin: 0.2rem 0; font-size: 1.7rem; }
+  .subtitle {
+    display: inline-block;
+    background: var(--rand);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.15rem 0.9rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+  }
+  .layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .board-wrap { background: #fff; border-radius: 14px; padding: 1rem 1.1rem;
+    box-shadow: 0 4px 18px rgba(20, 60, 90, 0.15); }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, 64px) 56px;
+    grid-auto-rows: 64px;
+    gap: 4px;
+  }
+  .cell, .rowbadge, .corner, .colbadge {
+    border: none;
+    border-radius: 8px;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+  }
+  .cell {
+    background: var(--wasser);
+    cursor: pointer;
+    transition: transform 0.06s;
+    user-select: none;
+  }
+  .cell:nth-child(odd) { background: var(--wasser-dunkel); }
+  .cell:hover { transform: scale(1.05); }
+  .cell.fisch { background: #ffd166; }
+  .cell.wasser { background: #cfd8dc; font-size: 1rem; }
+  .cell.hinweis-zelle { outline: 3px solid #e07b39; outline-offset: -3px; }
+  .cell.geloest { background: #ffd166; }
+  .rowbadge { background: var(--rand); color: #fff; font-size: 1.1rem; font-weight: 600; }
+  .rowbadge.ok { background: #3d9950; }
+  .rowbadge.over { background: #c0392b; }
+  .colbadge { background: var(--rand); color: #fff; font-size: 1.1rem; font-weight: 600; }
+  .colbadge.ok { background: #3d9950; }
+  .colbadge.over { background: #c0392b; }
+  .corner { background: transparent; }
+  .legend { margin-top: 0.9rem; font-size: 0.85rem; color: #4a6572; text-align: center; }
+  aside { max-width: 420px; }
+  aside h2 { font-size: 1.1rem; margin: 0.4rem 0 0.4rem; }
+  .card { background: #fff; border-radius: 14px; padding: 0.9rem 1.2rem;
+    box-shadow: 0 4px 18px rgba(20, 60, 90, 0.15); margin-bottom: 1rem; }
+  .fleet { list-style: none; padding: 0; margin: 0; }
+  .fleet li { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; }
+  .fleet .name { flex: 1; }
+  .seg-row { display: flex; gap: 3px; }
+  .seg { width: 20px; height: 20px; border-radius: 5px; background: #ffd166;
+    border: 2px solid #e0a930; }
+  .controls { text-align: center; margin: 1rem 0 0.5rem; display: flex;
+    gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+  button.action {
+    font: inherit; font-weight: 600; padding: 0.5rem 1.1rem; border: none;
+    border-radius: 999px; cursor: pointer; background: var(--rand); color: #fff;
+  }
+  button.action:hover { filter: brightness(1.15); }
+  button.action.neutral { background: #7f8c8d; }
+  #status { min-height: 1.6em; text-align: center; font-weight: 600; }
+  #status.err { color: #c0392b; }
+  #status.win { color: #3d9950; font-size: 1.1rem; }
+  ol.clues { padding-left: 1.2rem; margin: 0.3rem 0; }
+  ol.clues li { margin: 0.35rem 0; }
+  .rules { font-size: 0.88rem; color: #4a6572; }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#127973; Fischteich-R&auml;tsel</h1>
+  <span class="subtitle">LEVEL 1</span>
+</header>
+
+<div class="layout">
+  <div>
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+      <p class="legend">Klicken: unbekannt &rarr; Fisch &#128031; &rarr; Wasser &#128167; &rarr; unbekannt</p>
+    </div>
+    <div class="controls">
+      <button class="action" id="btnCheck">Pr&uuml;fen</button>
+      <button class="action neutral" id="btnHint">Hinweis</button>
+      <button class="action neutral" id="btnReset">Zur&uuml;cksetzen</button>
+      <button class="action neutral" id="btnSolve">L&ouml;sung zeigen</button>
+    </div>
+    <p id="status"></p>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>Die Fische</h2>
+      <ul class="fleet">
+        <li><span class="name"><strong>Wels</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
+            <span>4 Felder</span></li>
+        <li><span class="name"><strong>Hecht</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
+            <span>3 Felder</span></li>
+        <li><span class="name"><strong>Barsch</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span></span>
+            <span>2 Felder</span></li>
+        <li><span class="name"><strong>Rotfeder</strong></span>
+            <span class="seg-row"><span class="seg"></span></span>
+            <span>1 Feld</span></li>
+      </ul>
+      <p class="rules">Jeder Fisch liegt als gerade Linie im Teich. Die Fische
+      ber&uuml;hren sich <strong>niemals</strong> &ndash; auch nicht diagonal!</p>
+    </div>
+
+    <div class="card">
+      <h2>Hinweise</h2>
+      <ol class="clues">
+        <li>Der <strong>Wels</strong> schwimmt direkt am <strong>Nordufer</strong>.</li>
+        <li>Der <strong>Barsch</strong> ber&uuml;hrt den Teichrand <strong>niemals</strong>.</li>
+        <li>Der <strong>Hecht</strong> liegt genau in <strong>Nord-S&uuml;d-Richtung</strong>.</li>
+      </ol>
+      <p class="rules">Die Zahlen am Rand sagen, wie viele Fisch-Felder sich in
+      der jeweiligen Zeile oder Spalte verstecken. In Spalte 2 und 4 hat der
+      Fischereiverein die Schilder verloren &ndash; dort musst du kombinieren!</p>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+
+const N = 5;
+const ROW_HINTS = [4, 0, 3, 1, 2];
+const COL_HINTS = [3, null, 2, null, 2];
+
+const SOLUTION = new Set([
+  "0,1", "0,2", "0,3", "0,4",   // Wels
+  "2,0", "3,0", "4,0",          // Hecht
+  "2,2", "2,3",                 // Barsch
+  "4,4"                         // Rotfeder
+]);
+
+const SHIP_NAMES = { 4: "Wels", 3: "Hecht", 2: "Barsch", 1: "Rotfeder" };
+
+let state = [];      // 0 = unbekannt, 1 = Fisch, 2 = Wasser
+let locked = new Set();  // durch Hinweis aufgedeckte Felder
+let revealed = false;
+
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+
+function buildBoard() {
+  boardEl.innerHTML = "";
+  for (let c = 0; c < N; c++) {
+    if (c === 0) {
+      const corner = document.createElement("div");
+      corner.className = "corner";
+      boardEl.appendChild(corner);
+    }
+    const badge = document.createElement("div");
+    badge.className = "rowbadge";
+    badge.dataset.row = -1;
+    badge.style.height = "0";
+    badge.style.visibility = "hidden";
+    boardEl.appendChild(badge);
+  }
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const cell = document.createElement("button");
+      cell.className = "cell";
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.addEventListener("click", () => cycleCell(r, c));
+      boardEl.appendChild(cell);
+    }
+    const badge = document.createElement("div");
+    badge.className = "rowbadge";
+    badge.dataset.row = r;
+    badge.textContent = ROW_HINTS[r];
+    boardEl.appendChild(badge);
+  }
+  const corner = document.createElement("div");
+  corner.className = "corner";
+  boardEl.appendChild(corner);
+  for (let c = 0; c < N; c++) {
+    const badge = document.createElement("div");
+    badge.className = "colbadge";
+    badge.dataset.col = c;
+    badge.textContent = COL_HINTS[c] === null ? "?" : COL_HINTS[c];
+    boardEl.appendChild(badge);
+  }
+  const corner2 = document.createElement("div");
+  corner2.className = "corner";
+  boardEl.appendChild(corner2);
+  boardEl.style.gridTemplateRows = "0px repeat(5, 64px) 64px";
+}
+
+function resetState() {
+  state = Array.from({ length: N }, () => Array(N).fill(0));
+  locked = new Set();
+  revealed = false;
+  render();
+  setStatus("", "");
+}
+
+function cycleCell(r, c) {
+  if (revealed) return;
+  state[r][c] = (state[r][c] + 1) % 3;
+  render();
+  setStatus("", "");
+}
+
+function render() {
+  for (const el of boardEl.querySelectorAll(".cell")) {
+    const r = +el.dataset.r, c = +el.dataset.c;
+    el.className = "cell";
+    el.textContent = "";
+    if (revealed) {
+      if (SOLUTION.has(r + "," + c)) { el.className = "cell geloest"; el.textContent = "\u{1F41F}"; }
+      continue;
+    }
+    if (state[r][c] === 1) { el.className = "cell fisch"; el.textContent = "\u{1F41F}"; }
+    if (state[r][c] === 2) { el.className = "cell wasser"; el.textContent = "\u{1F4A7}"; }
+    if (locked.has(r + "," + c)) el.classList.add("hinweis-zelle");
+  }
+  for (let r = 0; r < N; r++) {
+    const badge = boardEl.querySelector('.rowbadge[data-row="' + r + '"]');
+    const count = state[r].filter(v => v === 1).length;
+    badge.className = "rowbadge";
+    if (count > ROW_HINTS[r]) badge.classList.add("over");
+  }
+  for (let c = 0; c < N; c++) {
+    if (COL_HINTS[c] === null) continue;
+    const badge = boardEl.querySelector('.colbadge[data-col="' + c + '"]');
+    let count = 0;
+    for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
+    badge.className = "colbadge";
+    if (count > COL_HINTS[c]) badge.classList.add("over");
+  }
+}
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg;
+  statusEl.className = cls || "";
+}
+
+function fishCells() {
+  const cells = [];
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (state[r][c] === 1) cells.push([r, c]);
+  return cells;
+}
+
+function components(cells) {
+  const key = ([r, c]) => r + "," + c;
+  const set = new Set(cells.map(key));
+  const seen = new Set();
+  const comps = [];
+  for (const start of cells) {
+    if (seen.has(key(start))) continue;
+    const queue = [start];
+    seen.add(key(start));
+    const comp = [];
+    while (queue.length) {
+      const [r, c] = queue.pop();
+      comp.push([r, c]);
+      for (const [dr, dc] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (set.has(nr + "," + nc) && !seen.has(nr + "," + nc)) {
+          seen.add(nr + "," + nc);
+          queue.push([nr, nc]);
+        }
+      }
+    }
+    comps.push(comp);
+  }
+  return comps;
+}
+
+function isStraight(comp) {
+  const rows = new Set(comp.map(p => p[0]));
+  const cols = new Set(comp.map(p => p[1]));
+  if (rows.size === 1 || cols.size === 1) return true;
+  return false;
+}
+
+function analyze() {
+  const errors = [];
+  const cells = fishCells();
+  const comps = components(cells);
+
+  for (let r = 0; r < N; r++) {
+    const count = state[r].filter(v => v === 1).length;
+    if (count > ROW_HINTS[r])
+      errors.push("Zeile " + (r + 1) + " hat zu viele Fische (" + count + " statt " + ROW_HINTS[r] + ").");
+  }
+  for (let c = 0; c < N; c++) {
+    if (COL_HINTS[c] === null) continue;
+    let count = 0;
+    for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
+    if (count > COL_HINTS[c])
+      errors.push("Spalte " + (c + 1) + " hat zu viele Fische (" + count + " statt " + COL_HINTS[c] + ").");
+  }
+
+  if (comps.some(c => !isStraight(c)))
+    errors.push("Jeder Fisch muss eine gerade Linie bilden.");
+  if (comps.some(c => c.length > 4))
+    errors.push("So einen langen Fisch gibt es im Teich nicht.");
+
+  const compOf = new Map();
+  comps.forEach((comp, i) => comp.forEach(p => compOf.set(p[0] + "," + p[1], i)));
+  for (const [r, c] of cells) {
+    const nr = r + 1, nc = c + 1;
+    if (nr >= N || nc >= N) continue;
+    const k = nr + "," + nc;
+    if (compOf.has(k) && compOf.get(k) !== compOf.get(r + "," + c)) {
+      errors.push("Zwei Fische ber\u00fchren sich diagonal \u2013 das ist verboten.");
+      break;
+    }
+  }
+
+  const lengths = comps.map(c => c.length).sort((a, b) => a - b);
+  const fleetOk = lengths.join(",") === "1,2,3,4";
+  if (fleetOk) {
+    const byLen = {};
+    comps.forEach(c => { byLen[c.length] = c; });
+    if (byLen[2].some(([r, c]) => r === 0 || r === 4 || c === 0 || c === 4))
+      errors.push("Der Barsch ber\u00fchrt den Teichrand \u2013 das darf er laut Hinweis nicht.");
+    if (!byLen[4].some(([r]) => r === 0))
+      errors.push("Der Wels schwimmt nicht am Nordufer.");
+    if (new Set(byLen[3].map(p => p[0])).size !== 3)
+      errors.push("Der Hecht muss genau in Nord-S\u00fcd-Richtung liegen.");
+  }
+
+  const rowsExact = ROW_HINTS.every((want, r) => state[r].filter(v => v === 1).length === want);
+  let colsExact = true;
+  for (let c = 0; c < N; c++) {
+    if (COL_HINTS[c] === null) continue;
+    let count = 0;
+    for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
+    if (count !== COL_HINTS[c]) colsExact = false;
+  }
+  const complete = errors.length === 0 && rowsExact && colsExact && fleetOk;
+  return { errors, complete };
+}
+
+function check() {
+  if (revealed) return;
+  const { errors, complete } = analyze();
+  if (errors.length) {
+    setStatus(errors[0], "err");
+    return;
+  }
+  if (!complete) {
+    setStatus("Noch keine Regel verletzt \u2013 aber die L\u00f6sung ist noch nicht vollst\u00e4ndig.", "");
+    return;
+  }
+  setStatus("\u{1F389} Geschafft! Alle Fische gefunden \u2013 der Teich ist gel\u00f6st!", "win");
+}
+
+function hint() {
+  if (revealed) return;
+  const open = [...SOLUTION].filter(k => state[k[0]][k[1]] !== 1 && !locked.has(k));
+  if (!open.length) { check(); return; }
+  const k = open[Math.floor(Math.random() * open.length)];
+  const r = +k.split(",")[0], c = +k.split(",")[1];
+  state[r][c] = 1;
+  locked.add(k);
+  render();
+  setStatus("\u{1F421} Ein Fisch-Feld wurde aufgedeckt (orange markiert).", "");
+}
+
+function reveal() {
+  revealed = true;
+  render();
+  setStatus("Das war die offizielle L\u00f6sung.", "");
+}
+
+document.getElementById("btnCheck").addEventListener("click", check);
+document.getElementById("btnHint").addEventListener("click", hint);
+document.getElementById("btnReset").addEventListener("click", resetState);
+document.getElementById("btnSolve").addEventListener("click", reveal);
+
+buildBoard();
+resetState();
+</script>
+</body>
+</html>
