@@ -183,19 +183,6 @@ const statusEl = document.getElementById("status");
 
 function buildBoard() {
   boardEl.innerHTML = "";
-  for (let c = 0; c < N; c++) {
-    if (c === 0) {
-      const corner = document.createElement("div");
-      corner.className = "corner";
-      boardEl.appendChild(corner);
-    }
-    const badge = document.createElement("div");
-    badge.className = "rowbadge";
-    badge.dataset.row = -1;
-    badge.style.height = "0";
-    badge.style.visibility = "hidden";
-    boardEl.appendChild(badge);
-  }
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const cell = document.createElement("button");
@@ -205,26 +192,23 @@ function buildBoard() {
       cell.addEventListener("click", () => cycleCell(r, c));
       boardEl.appendChild(cell);
     }
-    const badge = document.createElement("div");
-    badge.className = "rowbadge";
-    badge.dataset.row = r;
-    badge.textContent = ROW_HINTS[r];
-    boardEl.appendChild(badge);
+    const rowBadge = document.createElement("div");
+    rowBadge.className = "rowbadge";
+    rowBadge.dataset.row = r;
+    rowBadge.textContent = ROW_HINTS[r];
+    boardEl.appendChild(rowBadge);
+  }
+  for (let c = 0; c < N; c++) {
+    const colBadge = document.createElement("div");
+    colBadge.className = "colbadge";
+    colBadge.dataset.col = c;
+    colBadge.textContent = COL_HINTS[c] === null ? "?" : COL_HINTS[c];
+    boardEl.appendChild(colBadge);
   }
   const corner = document.createElement("div");
   corner.className = "corner";
   boardEl.appendChild(corner);
-  for (let c = 0; c < N; c++) {
-    const badge = document.createElement("div");
-    badge.className = "colbadge";
-    badge.dataset.col = c;
-    badge.textContent = COL_HINTS[c] === null ? "?" : COL_HINTS[c];
-    boardEl.appendChild(badge);
-  }
-  const corner2 = document.createElement("div");
-  corner2.className = "corner";
-  boardEl.appendChild(corner2);
-  boardEl.style.gridTemplateRows = "0px repeat(5, 64px) 64px";
+  boardEl.style.gridTemplateRows = "repeat(5, 64px) 64px";
 }
 
 function resetState() {
