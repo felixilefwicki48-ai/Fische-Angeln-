@@ -101,6 +101,22 @@
   ol.clues { padding-left: 1.2rem; margin: 0.3rem 0; }
   ol.clues li { margin: 0.35rem 0; }
   .rules { font-size: 0.88rem; color: #4a6572; }
+  details.anleitung {
+    max-width: 560px;
+    margin: 0 auto 1.2rem;
+    background: #fff;
+    border-radius: 14px;
+    padding: 0.7rem 1.1rem;
+    box-shadow: 0 4px 18px rgba(20, 60, 90, 0.15);
+  }
+  details.anleitung summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--rand);
+    user-select: none;
+  }
+  details.anleitung ul { margin: 0.5rem 0 0.2rem; padding-left: 1.2rem; font-size: 0.9rem; }
+  details.anleitung li { margin: 0.25rem 0; }
 </style>
 </head>
 <body>
@@ -108,6 +124,16 @@
   <h1>&#127973; Fischteich-R&auml;tsel</h1>
   <span class="subtitle">LEVEL 1</span>
 </header>
+
+<details class="anleitung" open>
+  <summary>&#128214; So wird gespielt</summary>
+  <ul>
+    <li><strong>Feld anklicken:</strong> unbekannt &rarr; Fisch &#128031; &rarr; Wasser &#128167; &rarr; unbekannt.</li>
+    <li><strong>Zahlen am Rand:</strong> Fisch-Felder pro Zeile bzw. Spalte. &bdquo;?&ldquo; = unbekannt.</li>
+    <li><strong>Regel:</strong> Jeder Fisch liegt als gerade Linie und ber&uuml;hrt andere nie &ndash; nicht einmal diagonal!</li>
+    <li><strong>Ziel:</strong> Alle vier Fische (1 + 2 + 3 + 4 Felder) verstecken, dann <em>Pr&uuml;fen</em> klicken.</li>
+  </ul>
+</details>
 
 <div class="layout">
   <div>
