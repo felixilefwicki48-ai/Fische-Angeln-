@@ -81,8 +81,9 @@
   .card { background: #fff; border-radius: 14px; padding: 0.9rem 1.2rem;
     box-shadow: 0 4px 18px rgba(20, 60, 90, 0.15); margin-bottom: 1rem; }
   .fleet { list-style: none; padding: 0; margin: 0; }
-  .fleet li { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; }
-  .fleet .name { flex: 1; }
+  .fleet li { display: flex; align-items: center; gap: 0.75rem; padding: 0.25rem 0; }
+  .fleet .name { flex: 0 0 6.5em; }
+  .fleet .count { margin-left: auto; }
   .seg-row { display: flex; gap: 3px; }
   .seg { width: 20px; height: 20px; border-radius: 5px; background: #ffd166;
     border: 2px solid #e0a930; }
@@ -125,26 +126,6 @@
 
   <aside>
     <div class="card">
-      <h2>Die Fische</h2>
-      <ul class="fleet">
-        <li><span class="name"><strong>Wels</strong></span>
-            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
-            <span>4 Felder</span></li>
-        <li><span class="name"><strong>Hecht</strong></span>
-            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
-            <span>3 Felder</span></li>
-        <li><span class="name"><strong>Barsch</strong></span>
-            <span class="seg-row"><span class="seg"></span><span class="seg"></span></span>
-            <span>2 Felder</span></li>
-        <li><span class="name"><strong>Rotfeder</strong></span>
-            <span class="seg-row"><span class="seg"></span></span>
-            <span>1 Feld</span></li>
-      </ul>
-      <p class="rules">Jeder Fisch liegt als gerade Linie im Teich. Die Fische
-      ber&uuml;hren sich <strong>niemals</strong> &ndash; auch nicht diagonal!</p>
-    </div>
-
-    <div class="card">
       <h2>Hinweise</h2>
       <ol class="clues">
         <li>Der <strong>Wels</strong> schwimmt direkt am <strong>Nordufer</strong>.</li>
@@ -154,6 +135,26 @@
       <p class="rules">Die Zahlen am Rand sagen, wie viele Fisch-Felder sich in
       der jeweiligen Zeile oder Spalte verstecken. In Spalte 2 und 4 hat der
       Fischereiverein die Schilder verloren &ndash; dort musst du kombinieren!</p>
+    </div>
+
+    <div class="card">
+      <h2>Die Fische</h2>
+      <ul class="fleet">
+        <li><span class="name"><strong>Wels</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
+            <span class="count">4 Felder</span></li>
+        <li><span class="name"><strong>Hecht</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span><span class="seg"></span></span>
+            <span class="count">3 Felder</span></li>
+        <li><span class="name"><strong>Barsch</strong></span>
+            <span class="seg-row"><span class="seg"></span><span class="seg"></span></span>
+            <span class="count">2 Felder</span></li>
+        <li><span class="name"><strong>Rotfeder</strong></span>
+            <span class="seg-row"><span class="seg"></span></span>
+            <span class="count">1 Feld</span></li>
+      </ul>
+      <p class="rules">Jeder Fisch liegt als gerade Linie im Teich. Die Fische
+      ber&uuml;hren sich <strong>niemals</strong> &ndash; auch nicht diagonal!</p>
     </div>
   </aside>
 </div>
