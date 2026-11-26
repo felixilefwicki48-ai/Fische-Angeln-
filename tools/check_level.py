@@ -98,7 +98,16 @@ LEVEL1 = {
     ],
 }
 
+LEVEL0 = {
+    "row": [4, 0, 3, 2, 1],
+    "col": [3, 1, 3, 1, 2],
+    "clues": [],  # Einstiegsraetsel: nur Randzahlen
+}
+
 if __name__ == "__main__":
+    for name, puzzle in (("LEVEL0", LEVEL0), ("LEVEL1", LEVEL1)):
+        uniq = {tuple((k, tuple(sorted(v))) for k, v in f.items()) for f in solve(puzzle)}
+        print(f"{name}: {len(uniq)} Loesung(en)")
     sols = solve(LEVEL1)
     print(f"Anzahl Loesungen: {len(sols)}")
     for s in sols[:5]:

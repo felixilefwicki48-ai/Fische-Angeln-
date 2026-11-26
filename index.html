@@ -75,6 +75,13 @@
   .colbadge.ok { background: #3d9950; }
   .colbadge.over { background: #c0392b; }
   .corner { background: transparent; }
+  .levels { display: flex; gap: 0.4rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+  .levels button {
+    font: inherit; font-weight: 600; padding: 0.3rem 0.85rem; border-radius: 999px;
+    border: 2px solid var(--rand); background: #fff; color: var(--rand); cursor: pointer;
+  }
+  .levels button.current { background: var(--rand); color: #fff; }
+  .levels button.locked { border-color: #b9c6cd; color: #8fa3ad; cursor: not-allowed; }
   .legend { margin-top: 0.9rem; font-size: 0.85rem; color: #4a6572; text-align: center; }
   aside { max-width: 420px; }
   aside h2 { font-size: 1.1rem; margin: 0.4rem 0 0.4rem; }
@@ -122,7 +129,7 @@
 <body>
 <header>
   <h1>&#127973; Fischteich-R&auml;tsel</h1>
-  <span class="subtitle">LEVEL 1</span>
+  <span class="subtitle" id="levelBadge">LEVEL 0</span>
 </header>
 
 <details class="anleitung" open>
@@ -138,6 +145,7 @@
 <div class="layout">
   <div>
     <div class="board-wrap">
+      <div class="levels" id="levelBar"></div>
       <div class="board" id="board"></div>
       <p class="legend">Klicken: unbekannt &rarr; Fisch &#128031; &rarr; Wasser &#128167; &rarr; unbekannt</p>
     </div>
@@ -153,14 +161,10 @@
   <aside>
     <div class="card">
       <h2>Hinweise</h2>
-      <ol class="clues">
-        <li>Der <strong>Wels</strong> schwimmt direkt am <strong>Nordufer</strong>.</li>
-        <li>Der <strong>Barsch</strong> ber&uuml;hrt den Teichrand <strong>niemals</strong>.</li>
-        <li>Der <strong>Hecht</strong> liegt genau in <strong>Nord-S&uuml;d-Richtung</strong>.</li>
-      </ol>
+      <ol class="clues" id="clueList"></ol>
       <p class="rules">Die Zahlen am Rand sagen, wie viele Fisch-Felder sich in
-      der jeweiligen Zeile oder Spalte verstecken. In Spalte 2 und 4 hat der
-      Fischereiverein die Schilder verloren &ndash; dort musst du kombinieren!</p>
+      der jeweiligen Zeile oder Spalte verstecken. Steht dort &bdquo;?&ldquo;,
+      hat der Fischereiverein das Schild verloren &ndash; dann hilft nur kombinieren!</p>
     </div>
 
     <div class="card">
@@ -189,24 +193,97 @@
 "use strict";
 
 const N = 5;
-const ROW_HINTS = [4, 0, 3, 1, 2];
-const COL_HINTS = [3, null, 2, null, 2];
 
-const SOLUTION = new Set([
-  "0,1", "0,2", "0,3", "0,4",   // Wels
-  "2,0", "3,0", "4,0",          // Hecht
-  "2,2", "2,3",                 // Barsch
-  "4,4"                         // Rotfeder
-]);
+const LEVELS = [
+  {
+    name: "Level 0",
+    row: [4, 0, 3, 2, 1],
+    col: [3, 1, 3, 1, 2],
+    solution: ["0,1", "0,2", "0,3", "0,4",
+               "2,0", "3,0", "4,0",
+               "2,2", "3,2",
+               "2,4"],
+    texts: [
+      "Kein Spezial-Hinweis \u2013 die Randzahlen reichen hier v\u00f6llig aus."
+    ],
+    checks: []
+  },
+  {
+    name: "Level 1",
+    row: [4, 0, 3, 1, 2],
+    col: [3, null, 2, null, 2],
+    solution: ["0,1", "0,2", "0,3", "0,4",
+               "2,0", "3,0", "4,0",
+               "2,2", "2,3",
+               "4,4"],
+    texts: [
+      "Der <strong>Wels</strong> schwimmt direkt am <strong>Nordufer</strong>.",
+      "Der <strong>Barsch</strong> ber&uuml;hrt den Teichrand <strong>niemals</strong>.",
+      "Der <strong>Hecht</strong> liegt genau in <strong>Nord-S&uuml;d-Richtung</strong>."
+    ],
+    checks: [
+      byLen => byLen[2].some(([r, c]) => r === 0 || r === 4 || c === 0 || c === 4)
+        ? "Der Barsch ber\u00fchrt den Teichrand \u2013 das darf er laut Hinweis nicht." : null,
+      byLen => !byLen[4].some(([r]) => r === 0)
+        ? "Der Wels schwimmt nicht am Nordufer." : null,
+      byLen => new Set(byLen[3].map(p => p[0])).size !== 3
+        ? "Der Hecht muss genau in Nord-S\u00fcd-Richtung liegen." : null
+    ]
+  }
+];
 
-const SHIP_NAMES = { 4: "Wels", 3: "Hecht", 2: "Barsch", 1: "Rotfeder" };
-
-let state = [];      // 0 = unbekannt, 1 = Fisch, 2 = Wasser
+let state = [];          // 0 = unbekannt, 1 = Fisch, 2 = Wasser
 let locked = new Set();  // durch Hinweis aufgedeckte Felder
 let revealed = false;
+let current = 0;
+let solved = new Set();
+let solutionSet = new Set();
 
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
+
+function lv() { return LEVELS[current]; }
+
+function store() {
+  try { localStorage.setItem("fischteich.solved", JSON.stringify([...solved])); } catch (e) {}
+}
+function restore() {
+  try { solved = new Set(JSON.parse(localStorage.getItem("fischteich.solved") || "[]")); }
+  catch (e) { solved = new Set(); }
+}
+
+function canPlay(i) { return i === 0 || solved.has(i - 1); }
+
+function buildLevelBar() {
+  const bar = document.getElementById("levelBar");
+  bar.innerHTML = "";
+  LEVELS.forEach((level, i) => {
+    const btn = document.createElement("button");
+    let cls = "";
+    if (solved.has(i)) { btn.textContent = level.name + " \u2713"; }
+    else if (!canPlay(i)) { btn.textContent = level.name + " \u{1F512}"; cls = " locked"; btn.disabled = true; }
+    else { btn.textContent = level.name; }
+    if (i === current) cls += " current";
+    btn.className = cls.trim();
+    if (!btn.disabled) btn.addEventListener("click", () => { current = i; loadLevel(); });
+    bar.appendChild(btn);
+  });
+}
+
+function loadLevel() {
+  solutionSet = new Set(lv().solution);
+  document.getElementById("levelBadge").textContent = lv().name.toUpperCase();
+  const list = document.getElementById("clueList");
+  list.innerHTML = "";
+  lv().texts.forEach(t => {
+    const li = document.createElement("li");
+    li.innerHTML = t;
+    list.appendChild(li);
+  });
+  buildBoard();
+  resetState();
+  buildLevelBar();
+}
 
 function buildBoard() {
   boardEl.innerHTML = "";
@@ -222,14 +299,14 @@ function buildBoard() {
     const rowBadge = document.createElement("div");
     rowBadge.className = "rowbadge";
     rowBadge.dataset.row = r;
-    rowBadge.textContent = ROW_HINTS[r];
+    rowBadge.textContent = lv().row[r];
     boardEl.appendChild(rowBadge);
   }
   for (let c = 0; c < N; c++) {
     const colBadge = document.createElement("div");
     colBadge.className = "colbadge";
     colBadge.dataset.col = c;
-    colBadge.textContent = COL_HINTS[c] === null ? "?" : COL_HINTS[c];
+    colBadge.textContent = lv().col[c] === null ? "?" : lv().col[c];
     boardEl.appendChild(colBadge);
   }
   const corner = document.createElement("div");
@@ -259,7 +336,7 @@ function render() {
     el.className = "cell";
     el.textContent = "";
     if (revealed) {
-      if (SOLUTION.has(r + "," + c)) { el.className = "cell geloest"; el.textContent = "\u{1F41F}"; }
+      if (solutionSet.has(r + "," + c)) { el.className = "cell geloest"; el.textContent = "\u{1F41F}"; }
       continue;
     }
     if (state[r][c] === 1) { el.className = "cell fisch"; el.textContent = "\u{1F41F}"; }
@@ -270,15 +347,15 @@ function render() {
     const badge = boardEl.querySelector('.rowbadge[data-row="' + r + '"]');
     const count = state[r].filter(v => v === 1).length;
     badge.className = "rowbadge";
-    if (count > ROW_HINTS[r]) badge.classList.add("over");
+    if (count > lv().row[r]) badge.classList.add("over");
   }
   for (let c = 0; c < N; c++) {
-    if (COL_HINTS[c] === null) continue;
+    if (lv().col[c] === null) continue;
     const badge = boardEl.querySelector('.colbadge[data-col="' + c + '"]');
     let count = 0;
     for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
     badge.className = "colbadge";
-    if (count > COL_HINTS[c]) badge.classList.add("over");
+    if (count > lv().col[c]) badge.classList.add("over");
   }
 }
 
@@ -296,19 +373,19 @@ function fishCells() {
 }
 
 function components(cells) {
-  const key = ([r, c]) => r + "," + c;
-  const set = new Set(cells.map(key));
+  const set = new Set(cells.map(p => p[0] + "," + p[1]));
   const seen = new Set();
   const comps = [];
   for (const start of cells) {
-    if (seen.has(key(start))) continue;
+    const k = start[0] + "," + start[1];
+    if (seen.has(k)) continue;
+    seen.add(k);
     const queue = [start];
-    seen.add(key(start));
     const comp = [];
     while (queue.length) {
       const [r, c] = queue.pop();
       comp.push([r, c]);
-      for (const [dr, dc] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nr = r + dr, nc = c + dc;
         if (set.has(nr + "," + nc) && !seen.has(nr + "," + nc)) {
           seen.add(nr + "," + nc);
@@ -322,10 +399,7 @@ function components(cells) {
 }
 
 function isStraight(comp) {
-  const rows = new Set(comp.map(p => p[0]));
-  const cols = new Set(comp.map(p => p[1]));
-  if (rows.size === 1 || cols.size === 1) return true;
-  return false;
+  return new Set(comp.map(p => p[0])).size === 1 || new Set(comp.map(p => p[1])).size === 1;
 }
 
 function analyze() {
@@ -335,15 +409,15 @@ function analyze() {
 
   for (let r = 0; r < N; r++) {
     const count = state[r].filter(v => v === 1).length;
-    if (count > ROW_HINTS[r])
-      errors.push("Zeile " + (r + 1) + " hat zu viele Fische (" + count + " statt " + ROW_HINTS[r] + ").");
+    if (count > lv().row[r])
+      errors.push("Zeile " + (r + 1) + " hat zu viele Fische (" + count + " statt " + lv().row[r] + ").");
   }
   for (let c = 0; c < N; c++) {
-    if (COL_HINTS[c] === null) continue;
+    if (lv().col[c] === null) continue;
     let count = 0;
     for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
-    if (count > COL_HINTS[c])
-      errors.push("Spalte " + (c + 1) + " hat zu viele Fische (" + count + " statt " + COL_HINTS[c] + ").");
+    if (count > lv().col[c])
+      errors.push("Spalte " + (c + 1) + " hat zu viele Fische (" + count + " statt " + lv().col[c] + ").");
   }
 
   if (comps.some(c => !isStraight(c)))
@@ -368,43 +442,46 @@ function analyze() {
   if (fleetOk) {
     const byLen = {};
     comps.forEach(c => { byLen[c.length] = c; });
-    if (byLen[2].some(([r, c]) => r === 0 || r === 4 || c === 0 || c === 4))
-      errors.push("Der Barsch ber\u00fchrt den Teichrand \u2013 das darf er laut Hinweis nicht.");
-    if (!byLen[4].some(([r]) => r === 0))
-      errors.push("Der Wels schwimmt nicht am Nordufer.");
-    if (new Set(byLen[3].map(p => p[0])).size !== 3)
-      errors.push("Der Hecht muss genau in Nord-S\u00fcd-Richtung liegen.");
+    for (const fn of lv().checks) {
+      const msg = fn(byLen);
+      if (msg) errors.push(msg);
+    }
   }
 
-  const rowsExact = ROW_HINTS.every((want, r) => state[r].filter(v => v === 1).length === want);
+  const rowsExact = lv().row.every((want, r) => state[r].filter(v => v === 1).length === want);
   let colsExact = true;
   for (let c = 0; c < N; c++) {
-    if (COL_HINTS[c] === null) continue;
+    if (lv().col[c] === null) continue;
     let count = 0;
     for (let r = 0; r < N; r++) if (state[r][c] === 1) count++;
-    if (count !== COL_HINTS[c]) colsExact = false;
+    if (count !== lv().col[c]) colsExact = false;
   }
-  const complete = errors.length === 0 && rowsExact && colsExact && fleetOk;
-  return { errors, complete };
+  return { errors, complete: errors.length === 0 && rowsExact && colsExact && fleetOk };
 }
 
 function check() {
   if (revealed) return;
   const { errors, complete } = analyze();
-  if (errors.length) {
-    setStatus(errors[0], "err");
-    return;
-  }
+  if (errors.length) { setStatus(errors[0], "err"); return; }
   if (!complete) {
     setStatus("Noch keine Regel verletzt \u2013 aber die L\u00f6sung ist noch nicht vollst\u00e4ndig.", "");
     return;
   }
-  setStatus("\u{1F389} Geschafft! Alle Fische gefunden \u2013 der Teich ist gel\u00f6st!", "win");
+  solved.add(current);
+  store();
+  let msg = "\u{1F389} Geschafft! Alle Fische gefunden \u2013 " + lv().name + " ist gel\u00f6st!";
+  if (current + 1 < LEVELS.length) {
+    msg += " \u{1F513} " + LEVELS[current + 1].name + " freigeschaltet!";
+  } else {
+    msg += " \u{1F3C6} Alle Level gel\u00f6st!";
+  }
+  setStatus(msg, "win");
+  buildLevelBar();
 }
 
 function hint() {
   if (revealed) return;
-  const open = [...SOLUTION].filter(k => state[k[0]][k[1]] !== 1 && !locked.has(k));
+  const open = [...solutionSet].filter(k => state[+k.split(",")[0]][+k.split(",")[1]] !== 1 && !locked.has(k));
   if (!open.length) { check(); return; }
   const k = open[Math.floor(Math.random() * open.length)];
   const r = +k.split(",")[0], c = +k.split(",")[1];
@@ -425,8 +502,10 @@ document.getElementById("btnHint").addEventListener("click", hint);
 document.getElementById("btnReset").addEventListener("click", resetState);
 document.getElementById("btnSolve").addEventListener("click", reveal);
 
-buildBoard();
-resetState();
+restore();
+current = 0;
+while (current < LEVELS.length - 1 && solved.has(current)) current++;
+loadLevel();
 </script>
 </body>
 </html>
